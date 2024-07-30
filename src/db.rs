@@ -24,7 +24,7 @@ impl DB {
         file.seek(SeekFrom::Start(0)).expect("Set start error");
 
         let mmap = unsafe { MmapMut::map_mut(&file).expect("Mmap file failed.") };
-        println!("mmap address is : {:p}",mmap.as_ptr());
+        println!("mmap address is : {:p}", mmap.as_ptr());
         DB {
             file: file,
             mmap: mmap,
@@ -34,13 +34,13 @@ impl DB {
     // 把Page写入DB中指定的位置
     pub fn write_page(&mut self, page: &Page, offset: usize) {
         let mut ptr = self.mmap.as_ptr();
-        println!("write mmap ptr is :{:p}",ptr);
+        println!("write mmap ptr is :{:p}", ptr);
         unsafe {
             if offset > 0 {
                 ptr = ptr.add(offset);
             }
-            let  ptr = ptr as *mut Page;
-            println!("write ptr is :{:p}",ptr);
+            let ptr = ptr as *mut Page;
+            println!("write ptr is :{:p}", ptr);
             ptr::write(ptr, page.clone());
         }
     }
@@ -48,13 +48,13 @@ impl DB {
     // 从DB中读一个Page
     pub fn read_page(&mut self, offset: usize) -> Page {
         let mut ptr = self.mmap.as_ptr();
-        println!("read mmap ptr is :{:p}",ptr);
+        println!("read mmap ptr is :{:p}", ptr);
         unsafe {
             if offset > 0 {
                 ptr = ptr.add(offset);
             }
             let ptr = ptr as *mut Page;
-            println!("read ptr is :{:p}",ptr);
+            println!("read ptr is :{:p}", ptr);
             ptr::read(ptr)
         }
     }

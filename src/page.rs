@@ -1,3 +1,5 @@
+use std::ptr;
+
 pub const BRANCH_PAGE_FLAG: u16 = 0x01;
 pub const LEAF_PAGE_FLAG: u16 = 0x02;
 pub const META_PAGE_FLAG: u16 = 0x04;
@@ -7,7 +9,15 @@ const MIN_KEYS_PER_PAGE: u16 = 2;
 
 const BUCKET_LEAF_FLAG: u16 = 0x01;
 
-#[derive(Ord, PartialEq, Eq, PartialOrd, Debug, Clone)]
+pub const PAGE_HEADER_SIZE: usize = std::mem::size_of::<Page>();
+
+pub const BRANCH_PAGE_ELEMENT_SIZE: usize = std::mem::size_of::<BranchPageElement>();
+pub const LEAF_PAGE_ELEMENT_SIZE: usize = std::mem::size_of::<LeafPageElement>();
+
+// 每个页面，最多有多少元素
+pub const MAX_PAGE_ELEMENT_COUNT: usize = 100;
+
+#[derive(Ord, PartialEq, Eq, PartialOrd, Debug, Clone, Copy)]
 pub struct Pgid(u64);
 
 impl Pgid {
@@ -58,25 +68,99 @@ impl Page {
     pub fn is_freelist_page(&self) -> bool {
         self.flags == FREELIST_PAGE_FLAG
     }
+
+    // 返回Page对应的指针
+    pub fn as_ptr(&self) -> *mut u8 {
+        self.as_ptr()
+    }
+
+    pub fn skip_page_header(&self) -> *mut u8 {
+        let mut ptr = self.as_ptr();
+        unsafe { ptr.add(PAGE_HEADER_SIZE) }
+    }
+
+    // 把指针跳转到val开始的位置
+    pub fn skip_to_val_start_loc(&self) -> *mut u8 {
+        let mut ptr = self.skip_page_header();
+
+        let skip_size = if self.is_branch_page() {
+            BRANCH_PAGE_ELEMENT_SIZE * MAX_PAGE_ELEMENT_COUNT
+        } else {
+            LEAF_PAGE_ELEMENT_SIZE * MAX_PAGE_ELEMENT_COUNT
+        };
+        // 跳过Page Element list
+        unsafe { ptr.add(skip_size) }
+    }
+
+    // 获取PageId
+    pub fn get_page_id(&self) -> Pgid {
+        self.id
+    }
+
+    // 写入BranchPageElement
+    pub fn write_branch_page_element(
+        &mut self,
+        branch_page_element: &BranchPageElement,
+        index: usize,
+    ) {
+        let mut base_ptr = self.skip_page_header();
+        unsafe {
+            if index > 0 {
+                base_ptr = base_ptr.add(index * BRANCH_PAGE_ELEMENT_SIZE);
+            }
+            let ptr = base_ptr as *mut BranchPageElement;
+            ptr::write(ptr, branch_page_element.clone());
+        }
+    }
+
+    // 写入LeafPageElement
+    pub fn write_leaf_page_element(&mut self, leaf_page_element: &LeafPageElement, index: usize) {
+        let mut base_ptr = self.skip_page_header();
+        unsafe {
+            if index > 0 {
+                base_ptr = base_ptr.add(index * LEAF_PAGE_ELEMENT_SIZE);
+            }
+            let ptr = base_ptr as *mut LeafPageElement;
+            ptr::write(ptr, leaf_page_element.clone());
+        }
+    }
+
+    // 在pos处写入Key; pos 是 page 中存储key * val 的起始地址
+    pub fn write_key(&mut self, key: &[u8], pos: usize) {
+        let base_ptr = self.skip_to_val_start_loc();
+        let key: Vec<u8> = Vec::from(key);
+        unsafe {
+            let ptr = base_ptr.add(pos);
+            let ptr = ptr as *mut Vec<u8>;
+            ptr::write(ptr, key);
+        }
+    }
+
+    // 在pos处写入val
+    pub fn write_val(&mut self, key: &[u8], pos: usize) {
+        self.write_key(key, pos);
+    }
 }
 
 // 代表叶子节点中的一个元素
+#[derive(Clone)]
 pub struct LeafPageElement {
-    flags: u32,
-    pos: u32,
-    ksize: u32,
-    vsize: u32,
+    flags: u16,
+    pos: usize,
+    ksize: usize,
+    vsize: usize,
 }
 
 // 代表分支节点中的一个元素
+#[derive(Clone)]
 pub struct BranchPageElement {
-    pos: u32,
-    ksize: u32,
+    pos: usize,
+    ksize: usize,
     pgid: Pgid,
 }
 
 impl LeafPageElement {
-    pub fn new(flags: u32, pos: u32, ksize: u32, vsize: u32) -> Self {
+    pub fn new(flags: u16, pos: usize, ksize: usize, vsize: usize) -> Self {
         Self {
             flags,
             pos,
@@ -87,7 +171,7 @@ impl LeafPageElement {
 }
 
 impl BranchPageElement {
-    pub fn new(pos: u32, ksize: u32, pgid: Pgid) -> Self {
+    pub fn new(pos: usize, ksize: usize, pgid: Pgid) -> Self {
         Self { pos, ksize, pgid }
     }
 }
