@@ -1,15 +1,21 @@
-const BRANCH_PAGE_FLAG: u16 = 0x01;
-const LEAF_PAGE_FLAG: u16 = 0x02;
-const META_PAGE_FLAG: u16 = 0x04;
-const FREELIST_PAGE_FLAG: u16 = 0x10;
+pub const BRANCH_PAGE_FLAG: u16 = 0x01;
+pub const LEAF_PAGE_FLAG: u16 = 0x02;
+pub const META_PAGE_FLAG: u16 = 0x04;
+pub const FREELIST_PAGE_FLAG: u16 = 0x10;
 
 const MIN_KEYS_PER_PAGE: u16 = 2;
 
 const BUCKET_LEAF_FLAG: u16 = 0x01;
 
-#[derive(Ord, PartialEq, Eq, PartialOrd, Debug)]
+#[derive(Ord, PartialEq, Eq, PartialOrd, Debug, Clone)]
 pub struct Pgid(u64);
 
+impl Pgid {
+    pub fn new(pgid: u64) -> Self {
+        Pgid(pgid)
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
 pub struct Page {
     id: Pgid,
     flags: u16,
