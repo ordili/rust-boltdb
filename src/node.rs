@@ -1,3 +1,7 @@
+#![allow(dead_code)]
+#![allow(unused)]
+#![allow(unused_variables)]
+
 use crate::page::{BranchPageElement, LeafPageElement, Page, Pgid};
 use std::vec;
 

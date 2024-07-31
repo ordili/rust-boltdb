@@ -1,3 +1,7 @@
+#![allow(dead_code)]
+#![allow(unused)]
+#![allow(unused_variables)]
+
 use crate::page::Page;
 use memmap2::MmapMut;
 use std::fs::{File, OpenOptions};

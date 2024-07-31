@@ -1,3 +1,7 @@
+#![allow(dead_code)]
+#![allow(unused)]
+#![allow(unused_variables)]
+
 use std::ptr;
 
 pub const BRANCH_PAGE_FLAG: u16 = 0x01;
@@ -70,17 +74,20 @@ impl Page {
     }
 
     // 返回Page对应的指针
-    pub fn as_ptr(&self) -> *mut u8 {
-        self.as_ptr()
+    pub fn as_ptr(&self) -> *const u8 {
+        std::ptr::from_ref(self) as *const u8
     }
 
-    pub fn skip_page_header(&self) -> *mut u8 {
+    pub fn as_mut_ptr(&mut self) -> *mut u8 {
+        std::ptr::from_mut(self) as *mut u8
+    }
+    pub fn skip_page_header(&self) -> *const u8 {
         let mut ptr = self.as_ptr();
         unsafe { ptr.add(PAGE_HEADER_SIZE) }
     }
 
     // 把指针跳转到val开始的位置
-    pub fn skip_to_val_start_loc(&self) -> *mut u8 {
+    pub fn skip_to_val_start_loc(&self) -> *const u8 {
         let mut ptr = self.skip_page_header();
 
         let skip_size = if self.is_branch_page() {
