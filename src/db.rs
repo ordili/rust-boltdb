@@ -2,7 +2,7 @@
 #![allow(unused)]
 #![allow(unused_variables)]
 
-use crate::constant::FILE_MAX_SIZE;
+use crate::constant::{FILE_MAX_SIZE, PAGE_SIZE};
 use crate::page::Page;
 use memmap2::MmapMut;
 use std::fs::{File, OpenOptions};
@@ -14,6 +14,36 @@ use std::ptr;
 pub struct DB {
     file: File,
     mmap: MmapMut,
+    start_ptr : *const u8,
+    end_ptr : *const u8,
+}
+
+impl DB{
+    pub fn file(&self) -> &File {
+        &self.file
+    }
+    pub fn mmap(&self) -> &MmapMut {
+        &self.mmap
+    }
+    pub fn start_ptr(&self) -> *const u8 {
+        self.start_ptr
+    }
+    pub fn end_ptr(&self) -> *const u8 {
+        self.end_ptr
+    }
+
+    pub fn set_file(&mut self, file: File) {
+        self.file = file;
+    }
+    pub fn set_mmap(&mut self, mmap: MmapMut) {
+        self.mmap = mmap;
+    }
+    pub fn set_start_ptr(&mut self, start_ptr: *const u8) {
+        self.start_ptr = start_ptr;
+    }
+    pub fn set_end_ptr(&mut self, end_ptr: *const u8) {
+        self.end_ptr = end_ptr;
+    }
 }
 
 impl DB {
@@ -21,7 +51,7 @@ impl DB {
         let mut file = OpenOptions::new()
             .write(true)
             .read(true)
-            // .create(true)
+            .create(true)
             .open(file_name)
             .expect("Open file failed");
 
@@ -30,38 +60,32 @@ impl DB {
 
         let mmap = unsafe { MmapMut::map_mut(&file).expect("Mmap file failed.") };
         println!("mmap address is : {:p}", mmap.as_ptr());
+        let range = mmap.as_ptr_range();
         DB {
             file: file,
             mmap: mmap,
+            start_ptr : range.start,
+            end_ptr: range.end
         }
     }
 
     // 把Page写入DB中指定的位置
     pub fn write_page(&mut self, page: &Page) {
-        let mut ptr = self.mmap.as_ptr();
+        let mut ptr = self.start_ptr();
         let page_id = page.get_page_id();
-        println!("write mmap ptr is :{:p}", ptr);
-
         unsafe {
-            if page_id > 0 {
-                ptr = ptr.add(page_id as usize);
-            }
+            ptr = ptr.add(page_id as usize * PAGE_SIZE);
             let ptr = ptr as *mut Page;
-            println!("write ptr is :{:p}", ptr);
             ptr::write(ptr, page.clone());
         }
     }
 
     // 从DB中读一个Page
-    pub fn read_page(&mut self, offset: usize) -> Page {
-        let mut ptr = self.mmap.as_ptr();
-        println!("read mmap ptr is :{:p}", ptr);
+    pub fn read_page(&mut self, page_id: u64) -> Page {
+        let mut ptr = self.start_ptr();
         unsafe {
-            if offset > 0 {
-                ptr = ptr.add(offset);
-            }
-            let ptr = ptr as *mut Page;
-            println!("read ptr is :{:p}", ptr);
+            ptr = ptr.add(page_id as usize * PAGE_SIZE);
+            let ptr = ptr as *const Page;
             ptr::read(ptr)
         }
     }
@@ -70,7 +94,7 @@ impl DB {
 #[cfg(test)]
 pub mod test {
     use crate::db::DB;
-    use crate::page::{Page, Pgid, LEAF_PAGE_FLAG};
+    use crate::page::{Page, LEAF_PAGE_FLAG};
 
     #[test]
     fn test_new_db() {
@@ -82,26 +106,21 @@ pub mod test {
     fn test_write_page() {
         let file_name = "test111.db".to_string();
         let mut db = DB::new(&file_name);
-        let page = Page::new(32, LEAF_PAGE_FLAG, 32, 12);
-        db.write_page(&page);
-
-        let page = Page::new(20, LEAF_PAGE_FLAG, 20, 12);
-        db.write_page(&page);
+        for page_id in 0..10 {
+            let page = Page::new(page_id, LEAF_PAGE_FLAG, (page_id+1) as u16, (page_id*page_id) as u32);
+            db.write_page(&page);
+        }
     }
 
     #[test]
     fn test_read_page() {
         let file_name = "test111.db".to_string();
         let mut db = DB::new(&file_name);
-        let page = Page::new(32, LEAF_PAGE_FLAG, 32, 12);
-        let ret_page = db.read_page(10);
-        println!("ret page is : {:?}", ret_page);
-        assert_eq!(page, ret_page);
-
-        let page = Page::new(20, LEAF_PAGE_FLAG, 20, 12);
-        let ret_page = db.read_page(20);
-        println!("ret page is : {:?}", ret_page);
-        assert_eq!(page, ret_page);
-        // std::fs::remove_file(&file_name).expect("Delete tempory file failed.");
+        for page_id in 0..10 {
+            let page = Page::new(page_id, LEAF_PAGE_FLAG, (page_id+1) as u16, (page_id*page_id) as u32);
+            let ret_page = db.read_page(page_id);
+            println!("ret page is : {:?}", ret_page);
+            assert_eq!(page, ret_page);
+        }
     }
 }
