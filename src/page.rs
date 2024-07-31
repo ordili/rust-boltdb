@@ -3,7 +3,7 @@
 #![allow(unused_variables)]
 
 use crate::constant::MAX_PAGE_ELEMENT_COUNT;
-use crate::node::INode;
+use crate::node::InnerNode;
 use std::ptr;
 
 pub const BRANCH_PAGE_FLAG: u16 = 0x01;
@@ -91,7 +91,7 @@ impl Page {
         self.flags == FREELIST_PAGE_FLAG
     }
 
-    // 返回Page对应的指针
+    // 返回Page对应的指针 to do.. need test this function
     pub fn as_ptr(&self) -> *const u8 {
         std::ptr::from_ref(self) as *const u8
     }
@@ -138,12 +138,11 @@ impl Page {
     }
 
     // 读出BranchPageElement
-    pub fn read_branch_page_element(&mut self, index: usize) -> BranchPageElement {
-        let mut base_ptr = self.skip_page_header();
+    pub fn read_branch_page_element(&self, index: usize) -> BranchPageElement {
+        let mut ptr = self.skip_page_header();
         unsafe {
-            base_ptr = base_ptr.add(index * BRANCH_PAGE_ELEMENT_SIZE);
-
-            let ptr = base_ptr as *mut BranchPageElement;
+            ptr = ptr.add(index * BRANCH_PAGE_ELEMENT_SIZE);
+            let ptr = ptr as *mut BranchPageElement;
             ptr::read(ptr)
         }
     }
@@ -153,14 +152,13 @@ impl Page {
         let mut base_ptr = self.skip_page_header();
         unsafe {
             base_ptr = base_ptr.add(index * LEAF_PAGE_ELEMENT_SIZE);
-
             let ptr = base_ptr as *mut LeafPageElement;
             ptr::write(ptr, leaf_page_element.clone());
         }
     }
 
     // 读出LeafPageElement
-    pub fn read_leaf_page_element(&mut self, index: usize) -> LeafPageElement {
+    pub fn read_leaf_page_element(&self, index: usize) -> LeafPageElement {
         let mut base_ptr = self.skip_page_header();
         unsafe {
             base_ptr = base_ptr.add(index * LEAF_PAGE_ELEMENT_SIZE);
@@ -176,18 +174,16 @@ impl Page {
         let key: Vec<u8> = Vec::from(key);
         unsafe {
             ptr = ptr.add(pos);
-
             let ptr = ptr as *mut Vec<u8>;
             ptr::write(ptr, key);
         }
     }
 
     // 从pos处读出Key; pos 是 page 中存储key * val 的起始地址
-    pub fn read_key(&mut self, pos: usize) -> Vec<u8> {
+    pub fn read_key(&self, pos: usize) -> Vec<u8> {
         let mut ptr = self.skip_to_val_start_loc();
         unsafe {
             ptr = ptr.add(pos);
-
             let ptr = ptr as *mut Vec<u8>;
             ptr::read(ptr)
         }
@@ -199,46 +195,8 @@ impl Page {
     }
 
     // 在pos处写入val
-    pub fn read_val(&mut self, key: &[u8], pos: usize) -> Vec<u8> {
+    pub fn read_val(&self, pos: usize) -> Vec<u8> {
         self.read_key(pos)
-    }
-
-    // 把INodes 写入Page中
-    // page 的内存布局是 ： PageHeader + PageElement List + Page Value
-    // Branch Page Value 的布局是： key1, key2, .... keyN
-    // Leaf Page Value 的布局是： key1, val1, key2, val2, ...., keyN, valN.
-    pub fn write_from_inodes(&mut self, inode_vec: &Vec<INode>) {
-        let is_leaf = self.is_leaf_page();
-        let page_id = self.get_page_id();
-
-        let mut pos = 0;
-        let mut index = 0;
-
-        for inode in inode_vec {
-            let key = inode.key();
-            let val = inode.value();
-
-            assert!(key.len() > 0, "write: zero-length inode key");
-
-            let sz = key.len() + val.len();
-
-            if is_leaf {
-                let leaf_page_element =
-                    LeafPageElement::new(inode.flags(), pos, key.len(), val.len());
-                self.write_leaf_page_element(&leaf_page_element, index);
-
-                self.write_key(&key, pos);
-                self.write_val(&val, pos + key.len());
-            } else {
-                let branch_element = BranchPageElement::new(pos, key.len(), page_id);
-                self.write_branch_page_element(&branch_element, index);
-
-                self.write_key(&key, pos);
-            }
-
-            pos += sz;
-            index += 1;
-        }
     }
 }
 
@@ -251,14 +209,64 @@ pub struct LeafPageElement {
     vsize: usize,
 }
 
+impl LeafPageElement {
+    pub fn flags(&self) -> u16 {
+        self.flags
+    }
+    pub fn pos(&self) -> usize {
+        self.pos
+    }
+    pub fn ksize(&self) -> usize {
+        self.ksize
+    }
+    pub fn vsize(&self) -> usize {
+        self.vsize
+    }
+
+    pub fn set_flags(&mut self, flags: u16) {
+        self.flags = flags;
+    }
+    pub fn set_pos(&mut self, pos: usize) {
+        self.pos = pos;
+    }
+    pub fn set_ksize(&mut self, ksize: usize) {
+        self.ksize = ksize;
+    }
+    pub fn set_vsize(&mut self, vsize: usize) {
+        self.vsize = vsize;
+    }
+}
+
 // 代表分支节点中的一个元素
 #[derive(Clone)]
 pub struct BranchPageElement {
     pos: usize,
     ksize: usize,
+    // 下一个页面的page id
     pgid: u64,
 }
 
+impl BranchPageElement {
+    pub fn pos(&self) -> usize {
+        self.pos
+    }
+    pub fn ksize(&self) -> usize {
+        self.ksize
+    }
+    pub fn pgid(&self) -> u64 {
+        self.pgid
+    }
+
+    pub fn set_pos(&mut self, pos: usize) {
+        self.pos = pos;
+    }
+    pub fn set_ksize(&mut self, ksize: usize) {
+        self.ksize = ksize;
+    }
+    pub fn set_pgid(&mut self, pgid: u64) {
+        self.pgid = pgid;
+    }
+}
 impl LeafPageElement {
     pub fn new(flags: u16, pos: usize, ksize: usize, vsize: usize) -> Self {
         Self {
