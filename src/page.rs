@@ -2,6 +2,7 @@
 #![allow(unused)]
 #![allow(unused_variables)]
 
+use crate::constant::MAX_PAGE_ELEMENT_COUNT;
 use crate::node::INode;
 use std::ptr;
 
@@ -18,29 +19,17 @@ pub const PAGE_HEADER_SIZE: usize = std::mem::size_of::<Page>();
 pub const BRANCH_PAGE_ELEMENT_SIZE: usize = std::mem::size_of::<BranchPageElement>();
 pub const LEAF_PAGE_ELEMENT_SIZE: usize = std::mem::size_of::<LeafPageElement>();
 
-// 每个页面，最多有多少元素
-pub const MAX_PAGE_ELEMENT_COUNT: usize = 100;
-
-#[derive(Ord, PartialEq, Eq, PartialOrd, Debug, Clone, Copy)]
-pub struct Pgid(u64);
-
-impl Pgid {
-    pub fn new(pgid: u64) -> Self {
-        Pgid(pgid)
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct Page {
-    id: Pgid,
+    page_id: u64,
     flags: u16,
     count: u16,
     overflow: u32,
 }
 
 impl Page {
-    pub fn id(&self) -> Pgid {
-        self.id
+    pub fn page_id(&self) -> u64 {
+        self.page_id
     }
     pub fn flags(&self) -> u16 {
         self.flags
@@ -52,8 +41,8 @@ impl Page {
         self.overflow
     }
 
-    pub fn set_id(&mut self, id: Pgid) {
-        self.id = id;
+    pub fn set_page_id(&mut self, page_id: u64) {
+        self.page_id = page_id;
     }
     pub fn set_flags(&mut self, flags: u16) {
         self.flags = flags;
@@ -67,9 +56,9 @@ impl Page {
 }
 
 impl Page {
-    pub fn new(id: Pgid, flags: u16, count: u16, overflow: u32) -> Self {
+    pub fn new(page_id: u64, flags: u16, count: u16, overflow: u32) -> Self {
         Page {
-            id,
+            page_id,
             flags,
             count,
             overflow,
@@ -129,8 +118,8 @@ impl Page {
     }
 
     // 获取PageId
-    pub fn get_page_id(&self) -> Pgid {
-        self.id
+    pub fn get_page_id(&self) -> u64 {
+        self.page_id
     }
 
     // 写入BranchPageElement
@@ -273,7 +262,7 @@ pub struct LeafPageElement {
 pub struct BranchPageElement {
     pos: usize,
     ksize: usize,
-    pgid: Pgid,
+    pgid: u64,
 }
 
 impl LeafPageElement {
@@ -288,7 +277,7 @@ impl LeafPageElement {
 }
 
 impl BranchPageElement {
-    pub fn new(pos: usize, ksize: usize, pgid: Pgid) -> Self {
+    pub fn new(pos: usize, ksize: usize, pgid: u64) -> Self {
         Self { pos, ksize, pgid }
     }
 }
@@ -301,7 +290,7 @@ pub struct PageInfo {
 }
 
 pub struct Pgids {
-    pub pgids: Vec<Pgid>,
+    pub pgids: Vec<u64>,
 }
 
 impl Pgids {
@@ -320,7 +309,7 @@ impl Pgids {
 #[cfg(test)]
 mod tests {
     use crate::page::{
-        Page, Pgid, Pgids, BRANCH_PAGE_FLAG, FREELIST_PAGE_FLAG, LEAF_PAGE_FLAG, META_PAGE_FLAG,
+        Page, Pgids, BRANCH_PAGE_FLAG, FREELIST_PAGE_FLAG, LEAF_PAGE_FLAG, META_PAGE_FLAG,
     };
 
     #[test]
@@ -328,33 +317,30 @@ mod tests {
         let mut pg1 = Pgids::new();
         let mut pg2 = Pgids::new();
 
-        pg1.pgids.push(Pgid(5));
-        pg1.pgids.push(Pgid(3));
-        pg1.pgids.push(Pgid(10));
+        pg1.pgids.push(5);
+        pg1.pgids.push(3);
+        pg1.pgids.push(10);
 
-        pg2.pgids.push(Pgid(3));
-        pg2.pgids.push(Pgid(7));
-        pg2.pgids.push(Pgid(6));
+        pg2.pgids.push(3);
+        pg2.pgids.push(7);
+        pg2.pgids.push(6);
         pg1.merge(pg2);
 
-        assert_eq!(
-            pg1.pgids,
-            vec![Pgid(3), Pgid(3), Pgid(5), Pgid(6), Pgid(7), Pgid(10)]
-        );
+        assert_eq!(pg1.pgids, vec![3, 3, 5, 6, 7, 10]);
     }
 
     #[test]
     fn test_page_new_type() {
-        let page = Page::new(Pgid(0), BRANCH_PAGE_FLAG, 12, 0);
+        let page = Page::new(0, BRANCH_PAGE_FLAG, 12, 0);
         assert_eq!(page.page_type(), Some("branch".to_string()));
 
-        let page = Page::new(Pgid(0), LEAF_PAGE_FLAG, 12, 0);
+        let page = Page::new(0, LEAF_PAGE_FLAG, 12, 0);
         assert_eq!(page.page_type(), Some("leaf".to_string()));
 
-        let page = Page::new(Pgid(0), META_PAGE_FLAG, 12, 0);
+        let page = Page::new(0, META_PAGE_FLAG, 12, 0);
         assert_eq!(page.page_type(), Some("meta".to_string()));
 
-        let page = Page::new(Pgid(0), FREELIST_PAGE_FLAG, 12, 0);
+        let page = Page::new(0, FREELIST_PAGE_FLAG, 12, 0);
         assert_eq!(page.page_type(), Some("freelist".to_string()));
     }
 }

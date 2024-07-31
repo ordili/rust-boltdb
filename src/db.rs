@@ -2,6 +2,7 @@
 #![allow(unused)]
 #![allow(unused_variables)]
 
+use crate::constant::FILE_MAX_SIZE;
 use crate::page::Page;
 use memmap2::MmapMut;
 use std::fs::{File, OpenOptions};
@@ -9,7 +10,7 @@ use std::io::{Seek, SeekFrom};
 use std::ptr;
 
 // 256 M
-const FILE_MAX_SIZE: u64 = 1024 * 1024 * 256;
+
 pub struct DB {
     file: File,
     mmap: MmapMut,
@@ -20,7 +21,7 @@ impl DB {
         let mut file = OpenOptions::new()
             .write(true)
             .read(true)
-            .create(true)
+            // .create(true)
             .open(file_name)
             .expect("Open file failed");
 
@@ -36,12 +37,14 @@ impl DB {
     }
 
     // 把Page写入DB中指定的位置
-    pub fn write_page(&mut self, page: &Page, offset: usize) {
+    pub fn write_page(&mut self, page: &Page) {
         let mut ptr = self.mmap.as_ptr();
+        let page_id = page.get_page_id();
         println!("write mmap ptr is :{:p}", ptr);
+
         unsafe {
-            if offset > 0 {
-                ptr = ptr.add(offset);
+            if page_id > 0 {
+                ptr = ptr.add(page_id as usize);
             }
             let ptr = ptr as *mut Page;
             println!("write ptr is :{:p}", ptr);
@@ -79,18 +82,26 @@ pub mod test {
     fn test_write_page() {
         let file_name = "test111.db".to_string();
         let mut db = DB::new(&file_name);
-        let page = Page::new(Pgid::new(32), LEAF_PAGE_FLAG, 32, 12);
-        db.write_page(&page, 10);
+        let page = Page::new(32, LEAF_PAGE_FLAG, 32, 12);
+        db.write_page(&page);
+
+        let page = Page::new(20, LEAF_PAGE_FLAG, 20, 12);
+        db.write_page(&page);
     }
 
     #[test]
     fn test_read_page() {
         let file_name = "test111.db".to_string();
         let mut db = DB::new(&file_name);
-        let page = Page::new(Pgid::new(32), LEAF_PAGE_FLAG, 32, 12);
+        let page = Page::new(32, LEAF_PAGE_FLAG, 32, 12);
         let ret_page = db.read_page(10);
         println!("ret page is : {:?}", ret_page);
         assert_eq!(page, ret_page);
-        std::fs::remove_file(&file_name).expect("Delete tempory file failed.");
+
+        let page = Page::new(20, LEAF_PAGE_FLAG, 20, 12);
+        let ret_page = db.read_page(20);
+        println!("ret page is : {:?}", ret_page);
+        assert_eq!(page, ret_page);
+        // std::fs::remove_file(&file_name).expect("Delete tempory file failed.");
     }
 }
