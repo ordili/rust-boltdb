@@ -14,7 +14,47 @@ pub struct Node {
     pgid: Pgid,
     // parent: &'a Node<'a>,
     // children   :&nodes,
-    inodes: INodes,
+    inodes: Vec<INode>,
+}
+
+impl Node {
+    pub fn is_leaf(&self) -> bool {
+        self.is_leaf
+    }
+    pub fn unbalanced(&self) -> bool {
+        self.unbalanced
+    }
+    pub fn spilled(&self) -> bool {
+        self.spilled
+    }
+    pub fn key(&self) -> &Vec<u8> {
+        &self.key
+    }
+    pub fn pgid(&self) -> Pgid {
+        self.pgid
+    }
+    pub fn inodes(&self) -> &Vec<INode> {
+        &self.inodes
+    }
+
+    pub fn set_is_leaf(&mut self, is_leaf: bool) {
+        self.is_leaf = is_leaf;
+    }
+    pub fn set_unbalanced(&mut self, unbalanced: bool) {
+        self.unbalanced = unbalanced;
+    }
+    pub fn set_spilled(&mut self, spilled: bool) {
+        self.spilled = spilled;
+    }
+    pub fn set_key(&mut self, key: Vec<u8>) {
+        self.key = key;
+    }
+    pub fn set_pgid(&mut self, pgid: Pgid) {
+        self.pgid = pgid;
+    }
+    pub fn set_inodes(&mut self, inodes: Vec<INode>) {
+        self.inodes = inodes;
+    }
 }
 
 pub struct INode {
@@ -24,49 +64,30 @@ pub struct INode {
     value: Vec<u8>,
 }
 
-pub struct INodes(Vec<INode>);
-
-impl INodes {
-    pub fn new() -> Self {
-        INodes(vec![])
+impl INode {
+    pub fn flags(&self) -> u16 {
+        self.flags
+    }
+    pub fn pgid(&self) -> Pgid {
+        self.pgid
+    }
+    pub fn key(&self) -> &Vec<u8> {
+        &self.key
+    }
+    pub fn value(&self) -> &Vec<u8> {
+        &self.value
     }
 
-    // 把INodes 写入Page中
-    // page 的内存布局是 ： PageHeader + PageElement List + Page Value
-    // Branch Page Value 的布局是： key1, key2, .... keyN
-    // Leaf Page Value 的布局是： key1, val1, key2, val2, ...., keyN, valN.
-    pub fn write_inodes_to_page(&mut self, page: &mut Page) {
-        let is_leaf = page.is_leaf_page();
-        let page_id = page.get_page_id();
-
-        let mut pos = 0;
-        let mut index = 0;
-        for inode in &self.0 {
-            assert!(inode.key.len() > 0, "write: zero-length inode key");
-
-            let sz = inode.key.len() + inode.value.len();
-
-            if is_leaf {
-                let leaf_page_element =
-                    LeafPageElement::new(inode.flags, pos, inode.key.len(), inode.value.len());
-                page.write_leaf_page_element(&leaf_page_element, index);
-
-                page.write_key(&inode.key, pos);
-                page.write_val(&inode.value, pos + inode.key.len());
-            } else {
-                let branch_element = BranchPageElement::new(pos, inode.key.len(), page_id);
-                page.write_branch_page_element(&branch_element, index);
-
-                page.write_key(&inode.key, pos);
-            }
-
-            pos += sz;
-            index += 1;
-        }
+    pub fn set_flags(&mut self, flags: u16) {
+        self.flags = flags;
     }
-
-    // 把Page中的内容读入到INodes中
-    pub fn read_inodes_from_page(&mut self, page: &mut Page) {
-        todo!()
+    pub fn set_pgid(&mut self, pgid: Pgid) {
+        self.pgid = pgid;
+    }
+    pub fn set_key(&mut self, key: Vec<u8>) {
+        self.key = key;
+    }
+    pub fn set_value(&mut self, value: Vec<u8>) {
+        self.value = value;
     }
 }

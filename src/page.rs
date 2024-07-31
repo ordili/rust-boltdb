@@ -2,13 +2,13 @@
 #![allow(unused)]
 #![allow(unused_variables)]
 
+use crate::node::INode;
 use std::ptr;
 
 pub const BRANCH_PAGE_FLAG: u16 = 0x01;
 pub const LEAF_PAGE_FLAG: u16 = 0x02;
 pub const META_PAGE_FLAG: u16 = 0x04;
 pub const FREELIST_PAGE_FLAG: u16 = 0x10;
-
 const MIN_KEYS_PER_PAGE: u16 = 2;
 
 const BUCKET_LEAF_FLAG: u16 = 0x01;
@@ -29,12 +29,41 @@ impl Pgid {
         Pgid(pgid)
     }
 }
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Page {
     id: Pgid,
     flags: u16,
     count: u16,
     overflow: u32,
+}
+
+impl Page {
+    pub fn id(&self) -> Pgid {
+        self.id
+    }
+    pub fn flags(&self) -> u16 {
+        self.flags
+    }
+    pub fn count(&self) -> u16 {
+        self.count
+    }
+    pub fn overflow(&self) -> u32 {
+        self.overflow
+    }
+
+    pub fn set_id(&mut self, id: Pgid) {
+        self.id = id;
+    }
+    pub fn set_flags(&mut self, flags: u16) {
+        self.flags = flags;
+    }
+    pub fn set_count(&mut self, count: u16) {
+        self.count = count;
+    }
+    pub fn set_overflow(&mut self, overflow: u32) {
+        self.overflow = overflow;
+    }
 }
 
 impl Page {
@@ -120,6 +149,18 @@ impl Page {
         }
     }
 
+    // 读出BranchPageElement
+    pub fn read_branch_page_element(&mut self, index: usize) -> BranchPageElement {
+        let mut base_ptr = self.skip_page_header();
+        unsafe {
+            if index > 0 {
+                base_ptr = base_ptr.add(index * BRANCH_PAGE_ELEMENT_SIZE);
+            }
+            let ptr = base_ptr as *mut BranchPageElement;
+            ptr::read(ptr)
+        }
+    }
+
     // 写入LeafPageElement
     pub fn write_leaf_page_element(&mut self, leaf_page_element: &LeafPageElement, index: usize) {
         let mut base_ptr = self.skip_page_header();
@@ -132,20 +173,89 @@ impl Page {
         }
     }
 
+    // 读出LeafPageElement
+    pub fn read_leaf_page_element(&mut self, index: usize) -> LeafPageElement {
+        let mut base_ptr = self.skip_page_header();
+        unsafe {
+            if index > 0 {
+                base_ptr = base_ptr.add(index * LEAF_PAGE_ELEMENT_SIZE);
+            }
+            let ptr = base_ptr as *mut LeafPageElement;
+            ptr::read(ptr)
+        }
+    }
+
     // 在pos处写入Key; pos 是 page 中存储key * val 的起始地址
     pub fn write_key(&mut self, key: &[u8], pos: usize) {
-        let base_ptr = self.skip_to_val_start_loc();
+        let mut ptr = self.skip_to_val_start_loc();
         let key: Vec<u8> = Vec::from(key);
         unsafe {
-            let ptr = base_ptr.add(pos);
+            if pos > 0 {
+                ptr = ptr.add(pos);
+            }
             let ptr = ptr as *mut Vec<u8>;
             ptr::write(ptr, key);
+        }
+    }
+
+    // 从pos处读出Key; pos 是 page 中存储key * val 的起始地址
+    pub fn read_key(&mut self, pos: usize) -> Vec<u8> {
+        let mut ptr = self.skip_to_val_start_loc();
+        unsafe {
+            if pos > 0 {
+                ptr = ptr.add(pos);
+            }
+            let ptr = ptr as *mut Vec<u8>;
+            ptr::read(ptr)
         }
     }
 
     // 在pos处写入val
     pub fn write_val(&mut self, key: &[u8], pos: usize) {
         self.write_key(key, pos);
+    }
+
+    // 在pos处写入val
+    pub fn read_val(&mut self, key: &[u8], pos: usize) -> Vec<u8> {
+        self.read_key(pos)
+    }
+
+    // 把INodes 写入Page中
+    // page 的内存布局是 ： PageHeader + PageElement List + Page Value
+    // Branch Page Value 的布局是： key1, key2, .... keyN
+    // Leaf Page Value 的布局是： key1, val1, key2, val2, ...., keyN, valN.
+    pub fn write_from_inodes(&mut self, inode_vec: &Vec<INode>) {
+        let is_leaf = self.is_leaf_page();
+        let page_id = self.get_page_id();
+
+        let mut pos = 0;
+        let mut index = 0;
+
+        for inode in inode_vec {
+            let key = inode.key();
+            let val = inode.value();
+
+            assert!(key.len() > 0, "write: zero-length inode key");
+
+            let sz = key.len() + val.len();
+
+            if is_leaf {
+                let leaf_page_element =
+                    LeafPageElement::new(inode.flags(), pos, key.len(), val.len());
+                self.write_leaf_page_element(&leaf_page_element, index);
+
+                self.write_key(&key, pos);
+                self.write_val(&val, pos + key.len());
+            } else {
+                let branch_element = BranchPageElement::new(pos, key.len(), page_id);
+                self.write_branch_page_element(&branch_element, index);
+
+                self.write_key(&key, pos);
+            }
+
+            pos += sz;
+            index += 1;
+        }
     }
 }
 
