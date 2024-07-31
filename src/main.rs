@@ -1,8 +1,11 @@
+#![allow(dead_code)]
+#![allow(unused)]
+#![allow(unused_variables)]
+
 use memmap2::MmapMut;
 use rust_boltdb::constant::FILE_MAX_SIZE;
 use std::fs::OpenOptions;
 use std::io::{Seek, SeekFrom};
-use std::ptr;
 
 fn main() {
     test_mem_map();

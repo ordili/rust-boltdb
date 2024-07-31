@@ -14,11 +14,11 @@ use std::ptr;
 pub struct DB {
     file: File,
     mmap: MmapMut,
-    start_ptr : *const u8,
-    end_ptr : *const u8,
+    start_ptr: *const u8,
+    end_ptr: *const u8,
 }
 
-impl DB{
+impl DB {
     pub fn file(&self) -> &File {
         &self.file
     }
@@ -64,8 +64,8 @@ impl DB {
         DB {
             file: file,
             mmap: mmap,
-            start_ptr : range.start,
-            end_ptr: range.end
+            start_ptr: range.start,
+            end_ptr: range.end,
         }
     }
 
@@ -107,7 +107,12 @@ pub mod test {
         let file_name = "test111.db".to_string();
         let mut db = DB::new(&file_name);
         for page_id in 0..10 {
-            let page = Page::new(page_id, LEAF_PAGE_FLAG, (page_id+1) as u16, (page_id*page_id) as u32);
+            let page = Page::new(
+                page_id,
+                LEAF_PAGE_FLAG,
+                (page_id + 1) as u16,
+                (page_id * page_id) as u32,
+            );
             db.write_page(&page);
         }
     }
@@ -117,7 +122,12 @@ pub mod test {
         let file_name = "test111.db".to_string();
         let mut db = DB::new(&file_name);
         for page_id in 0..10 {
-            let page = Page::new(page_id, LEAF_PAGE_FLAG, (page_id+1) as u16, (page_id*page_id) as u32);
+            let page = Page::new(
+                page_id,
+                LEAF_PAGE_FLAG,
+                (page_id + 1) as u16,
+                (page_id * page_id) as u32,
+            );
             let ret_page = db.read_page(page_id);
             println!("ret page is : {:?}", ret_page);
             assert_eq!(page, ret_page);

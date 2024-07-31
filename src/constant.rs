@@ -5,4 +5,4 @@ pub const FILE_MAX_SIZE: u64 = 1024 * 100;
 pub const MAX_PAGE_ELEMENT_COUNT: usize = 10;
 
 // 页面大小
-pub const PAGE_SIZE :usize= 1024;
+pub const PAGE_SIZE: usize = 1024;

@@ -130,9 +130,8 @@ impl Page {
     ) {
         let mut base_ptr = self.skip_page_header();
         unsafe {
-            if index > 0 {
-                base_ptr = base_ptr.add(index * BRANCH_PAGE_ELEMENT_SIZE);
-            }
+            base_ptr = base_ptr.add(index * BRANCH_PAGE_ELEMENT_SIZE);
+
             let ptr = base_ptr as *mut BranchPageElement;
             ptr::write(ptr, branch_page_element.clone());
         }
@@ -142,9 +141,8 @@ impl Page {
     pub fn read_branch_page_element(&mut self, index: usize) -> BranchPageElement {
         let mut base_ptr = self.skip_page_header();
         unsafe {
-            if index > 0 {
-                base_ptr = base_ptr.add(index * BRANCH_PAGE_ELEMENT_SIZE);
-            }
+            base_ptr = base_ptr.add(index * BRANCH_PAGE_ELEMENT_SIZE);
+
             let ptr = base_ptr as *mut BranchPageElement;
             ptr::read(ptr)
         }
@@ -154,9 +152,8 @@ impl Page {
     pub fn write_leaf_page_element(&mut self, leaf_page_element: &LeafPageElement, index: usize) {
         let mut base_ptr = self.skip_page_header();
         unsafe {
-            if index > 0 {
-                base_ptr = base_ptr.add(index * LEAF_PAGE_ELEMENT_SIZE);
-            }
+            base_ptr = base_ptr.add(index * LEAF_PAGE_ELEMENT_SIZE);
+
             let ptr = base_ptr as *mut LeafPageElement;
             ptr::write(ptr, leaf_page_element.clone());
         }
@@ -166,9 +163,8 @@ impl Page {
     pub fn read_leaf_page_element(&mut self, index: usize) -> LeafPageElement {
         let mut base_ptr = self.skip_page_header();
         unsafe {
-            if index > 0 {
-                base_ptr = base_ptr.add(index * LEAF_PAGE_ELEMENT_SIZE);
-            }
+            base_ptr = base_ptr.add(index * LEAF_PAGE_ELEMENT_SIZE);
+
             let ptr = base_ptr as *mut LeafPageElement;
             ptr::read(ptr)
         }
@@ -179,9 +175,8 @@ impl Page {
         let mut ptr = self.skip_to_val_start_loc();
         let key: Vec<u8> = Vec::from(key);
         unsafe {
-            if pos > 0 {
-                ptr = ptr.add(pos);
-            }
+            ptr = ptr.add(pos);
+
             let ptr = ptr as *mut Vec<u8>;
             ptr::write(ptr, key);
         }
@@ -191,9 +186,8 @@ impl Page {
     pub fn read_key(&mut self, pos: usize) -> Vec<u8> {
         let mut ptr = self.skip_to_val_start_loc();
         unsafe {
-            if pos > 0 {
-                ptr = ptr.add(pos);
-            }
+            ptr = ptr.add(pos);
+
             let ptr = ptr as *mut Vec<u8>;
             ptr::read(ptr)
         }
