@@ -59,7 +59,7 @@ impl DB {
         file.seek(SeekFrom::Start(0)).expect("Set start error");
 
         let mmap = unsafe { MmapMut::map_mut(&file).expect("Mmap file failed.") };
-        println!("mmap address is : {:p}", mmap.as_ptr());
+        log::info!("mmap address is : {:p}", mmap.as_ptr());
         let range = mmap.as_ptr_range();
         DB {
             file: file,
@@ -70,7 +70,7 @@ impl DB {
     }
 
     // 把Page写入DB中指定的位置
-    pub fn write_page(&mut self, page: &Page) {
+    pub fn write_page(&self, page: &Page) {
         let mut ptr = self.start_ptr();
         let page_id = page.get_page_id();
         unsafe {
@@ -115,10 +115,12 @@ pub mod test {
             );
             db.write_page(&page);
         }
+        log::debug!("hello");
     }
 
     #[test]
     fn test_read_page() {
+        env_logger::init();
         let file_name = "test111.db".to_string();
         let mut db = DB::new(&file_name);
         for page_id in 0..10 {
@@ -129,7 +131,7 @@ pub mod test {
                 (page_id * page_id) as u32,
             );
             let ret_page = db.read_page(page_id);
-            println!("ret page is : {:?}", ret_page);
+            log::info!("ret page is : {:?}", ret_page);
             assert_eq!(page, ret_page);
         }
     }

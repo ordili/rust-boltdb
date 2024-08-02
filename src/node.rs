@@ -118,6 +118,7 @@ impl Node {
     }
 }
 
+#[derive(Debug)]
 pub struct InnerNode {
     flags: u16,
     page_id: u64,
@@ -161,5 +162,37 @@ impl InnerNode {
     }
     pub fn set_value(&mut self, value: Vec<u8>) {
         self.value = value;
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use crate::db::DB;
+    use crate::node::{InnerNode, Node};
+    use crate::page::{Page, BRANCH_PAGE_FLAG};
+
+    const FILE_NAME: &str = "data.db";
+
+    #[test]
+    fn test_write() {
+        let mut node = Node::new();
+        let page_id = 2;
+        node.set_page_id(page_id);
+        node.set_is_leaf(false);
+        let mut inner_node_list = Vec::<InnerNode>::new();
+        let count = 3;
+        for index in 0..count {
+            let key = format!("key_{}", index);
+            let val = format!("val_{}", index);
+            let key = Vec::<u8>::from(&key[..]);
+            let val = Vec::<u8>::from(&val[..]);
+            let inner_node = InnerNode::new(BRANCH_PAGE_FLAG, page_id, key, val);
+            inner_node_list.push(inner_node);
+        }
+        node.set_inner_node_list(inner_node_list);
+        let mut page = Page::new(page_id, BRANCH_PAGE_FLAG, count, 1);
+        let mut db = DB::new(FILE_NAME);
+        db.write_page(&page);
+        node.write(&mut page);
     }
 }
