@@ -5,6 +5,7 @@
 use crate::constant::MAX_PAGE_ELEMENT_COUNT;
 use crate::node::InnerNode;
 use std::ptr;
+use std::ptr::NonNull;
 
 pub const BRANCH_PAGE_FLAG: u16 = 0x01;
 pub const LEAF_PAGE_FLAG: u16 = 0x02;
@@ -21,6 +22,7 @@ pub const LEAF_PAGE_ELEMENT_SIZE: usize = std::mem::size_of::<LeafPageElement>()
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Page {
+    page_ptr: Option<*const u8>,
     page_id: u64,
     flags: u16,
     count: u16,
@@ -53,11 +55,20 @@ impl Page {
     pub fn set_overflow(&mut self, overflow: u32) {
         self.overflow = overflow;
     }
+
+    pub fn page_ptr(&self) -> Option<*const u8> {
+        self.page_ptr
+    }
+
+    pub fn set_page_ptr(&mut self, page_ptr: Option<*const u8>) {
+        self.page_ptr = page_ptr;
+    }
 }
 
 impl Page {
     pub fn new(page_id: u64, flags: u16, count: u16, overflow: u32) -> Self {
         Page {
+            page_ptr: None,
             page_id,
             flags,
             count,
@@ -92,20 +103,23 @@ impl Page {
     }
 
     // 返回Page对应的指针 to do.. need test this function
-    pub fn as_ptr(&self) -> *const u8 {
-        std::ptr::from_ref(self) as *const u8
+    pub fn as_ptr(&self) -> Option<*const u8> {
+        self.page_ptr
     }
 
-    pub fn as_mut_ptr(&mut self) -> *mut u8 {
-        std::ptr::from_mut(self) as *mut u8
+    pub fn as_mut_ptr(&mut self) -> Option<*mut u8> {
+        match self.page_ptr {
+            Some(ptr) => Some(ptr as *mut u8),
+            None => None,
+        }
     }
-    pub fn skip_page_header(&self) -> *const u8 {
-        let mut ptr = self.as_ptr();
+    pub fn skip_page_header(&mut self) -> *mut u8 {
+        let mut ptr = self.as_mut_ptr().expect("page address is None");
         unsafe { ptr.add(PAGE_HEADER_SIZE) }
     }
 
     // 把指针跳转到val开始的位置
-    pub fn skip_to_val_start_loc(&self) -> *const u8 {
+    pub fn skip_to_val_start_loc(&mut self) -> *mut u8 {
         let mut ptr = self.skip_page_header();
 
         let skip_size = if self.is_branch_page() {
@@ -138,7 +152,7 @@ impl Page {
     }
 
     // 读出BranchPageElement
-    pub fn read_branch_page_element(&self, index: usize) -> BranchPageElement {
+    pub fn read_branch_page_element(&mut self, index: usize) -> BranchPageElement {
         let mut ptr = self.skip_page_header();
         unsafe {
             ptr = ptr.add(index * BRANCH_PAGE_ELEMENT_SIZE);
@@ -158,7 +172,7 @@ impl Page {
     }
 
     // 读出LeafPageElement
-    pub fn read_leaf_page_element(&self, index: usize) -> LeafPageElement {
+    pub fn read_leaf_page_element(&mut self, index: usize) -> LeafPageElement {
         let mut base_ptr = self.skip_page_header();
         unsafe {
             base_ptr = base_ptr.add(index * LEAF_PAGE_ELEMENT_SIZE);
@@ -171,22 +185,21 @@ impl Page {
     // 在pos处写入Key; pos 是 page 中存储key * val 的起始地址
     pub fn write_key(&mut self, key: &[u8], pos: usize) {
         let mut ptr = self.skip_to_val_start_loc();
-        let key: Vec<u8> = Vec::from(key);
         unsafe {
             ptr = ptr.add(pos);
-            let ptr = ptr as *mut Vec<u8>;
-            ptr::write(ptr, key);
+            ptr::copy(key.as_ptr(), ptr, key.len());
         }
     }
 
     // 从pos处读出Key; pos 是 page 中存储key * val 的起始地址
-    pub fn read_key(&self, pos: usize) -> Vec<u8> {
+    pub fn read_key(&mut self, pos: usize, key_size: usize) -> Vec<u8> {
         let mut ptr = self.skip_to_val_start_loc();
+        let mut ret = vec![0u8; key_size];
         unsafe {
             ptr = ptr.add(pos);
-            let ptr = ptr as *mut Vec<u8>;
-            ptr::read(ptr)
+            ptr::copy(ptr, ret.as_mut_ptr(), key_size);
         }
+        ret
     }
 
     // 在pos处写入val
@@ -195,8 +208,8 @@ impl Page {
     }
 
     // 在pos处写入val
-    pub fn read_val(&self, pos: usize) -> Vec<u8> {
-        self.read_key(pos)
+    pub fn read_val(&mut self, pos: usize, val_size: usize) -> Vec<u8> {
+        self.read_key(pos, val_size)
     }
 }
 
@@ -267,6 +280,7 @@ impl BranchPageElement {
         self.pgid = pgid;
     }
 }
+
 impl LeafPageElement {
     pub fn new(flags: u16, pos: usize, ksize: usize, vsize: usize) -> Self {
         Self {
@@ -310,9 +324,12 @@ impl Pgids {
 
 #[cfg(test)]
 mod tests {
+    use crate::constant::PAGE_SIZE;
+    use crate::db::DB;
     use crate::page::{
         Page, Pgids, BRANCH_PAGE_FLAG, FREELIST_PAGE_FLAG, LEAF_PAGE_FLAG, META_PAGE_FLAG,
     };
+    use std::ptr;
 
     #[test]
     pub fn test_pgids_merge() {
@@ -344,5 +361,40 @@ mod tests {
 
         let page = Page::new(0, FREELIST_PAGE_FLAG, 12, 0);
         assert_eq!(page.page_type(), Some("freelist".to_string()));
+    }
+
+    // #[test]
+    fn test_write_key_and_read_key() {
+        let file_name = "file.db";
+        let mut db = DB::new(file_name);
+        let page_id = 1;
+        let mut page = Page::new(page_id, BRANCH_PAGE_FLAG, 1, 0);
+        db.write_page(&mut page);
+        let mut page = db.read_page(page_id);
+    }
+
+    #[test]
+    fn test_page_ptr() {
+        // env_logger::init();
+        let file_name = "file.db";
+        let mut db = DB::new(file_name);
+        let page_id = 1;
+        let mut page = Page::new(page_id, BRANCH_PAGE_FLAG, 1, 0);
+        log::info!("db start address : {:p}", db.start_ptr());
+        db.write_page(&mut page);
+        let mut page = db.read_page(page_id);
+        log::info!("read page address : {:p}", page.as_ptr().unwrap());
+        let mut ptr_from_db = db.start_ptr();
+        unsafe {
+            ptr_from_db = ptr_from_db.add(PAGE_SIZE * page_id as usize);
+        }
+        log::info!("true page address : {:p}", ptr_from_db);
+        assert_eq!(page.as_ptr().unwrap(), ptr_from_db);
+        assert_eq!(page.as_mut_ptr().unwrap(), ptr_from_db as *mut u8);
+
+        // test page put ptr can be written
+        unsafe {
+            ptr::write(page.as_mut_ptr().unwrap() as *mut Page, page);
+        }
     }
 }

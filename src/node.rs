@@ -9,6 +9,7 @@ use std::ptr::NonNull;
 use std::vec;
 
 // 代表磁盘中的一个Page；数据存储在内存中
+#[derive(Debug, PartialEq)]
 pub struct Node {
     is_leaf: bool,
     unbalanced: bool,
@@ -82,11 +83,13 @@ impl Node {
     }
 
     // 用Page初始化Node， 数据从Page中读取；Page中的数据从磁盘中读取；
-    pub fn read(&mut self, page: &Page) {
+    pub fn read(&mut self, page: &mut Page) {
         self.set_is_leaf(page.is_leaf_page());
         self.set_page_id(page.get_page_id());
         let inner_node_list = read_inner_node_from_page(page);
-        let key = if inner_node_list.len() > 0 {
+
+        // branch 才有key； leaf node 里面，没有key
+        let key = if page.is_branch_page() && inner_node_list.len() > 0 {
             // 保存最小的Key
             let key = &inner_node_list.get(0).unwrap().key;
             Some(key.clone())
@@ -118,7 +121,7 @@ impl Node {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct InnerNode {
     flags: u16,
     page_id: u64,
@@ -169,30 +172,82 @@ impl InnerNode {
 pub mod test {
     use crate::db::DB;
     use crate::node::{InnerNode, Node};
-    use crate::page::{Page, BRANCH_PAGE_FLAG};
-
-    const FILE_NAME: &str = "data.db";
+    use crate::page::{Page, BRANCH_PAGE_FLAG, LEAF_PAGE_FLAG};
 
     #[test]
-    fn test_write() {
+    fn test_write_and_read_for_branch_node() {
+        env_logger::init();
+        let file_name = "data.db".to_string();
+        let mut db = DB::new(&file_name);
+        let page_id = 5;
+        let flags = BRANCH_PAGE_FLAG;
+        let count = 20;
+        let page = Page::new(page_id, flags, count as u16, (page_id * page_id) as u32);
+        db.write_page(&page);
+        let mut page = db.read_page(page_id);
+        let mut node = init_branch_node(page_id, flags, count as usize);
+        node.write(&mut page);
+        let mut ret_node = Node::new();
+        ret_node.read(&mut page);
+        assert_eq!(node, ret_node);
+    }
+
+    fn init_branch_node(page_id: u64, flags: u16, count: usize) -> Node {
         let mut node = Node::new();
-        let page_id = 2;
         node.set_page_id(page_id);
         node.set_is_leaf(false);
         let mut inner_node_list = Vec::<InnerNode>::new();
-        let count = 3;
+        let count = 5;
+
+        for index in 0..count {
+            let key = format!("key_{}", index);
+            let key = Vec::<u8>::from(&key[..]);
+            let inner_node = InnerNode::new(flags, page_id, key, vec![]);
+            inner_node_list.push(inner_node);
+        }
+
+        let key = format!("key_{}", 0);
+        let key = Vec::<u8>::from(&key[..]);
+        node.set_key(Some(key));
+        node.set_inner_node_list(inner_node_list);
+
+        node
+    }
+
+    fn init_leaf_node(page_id: u64, flags: u16, count: usize) -> Node {
+        let mut node = Node::new();
+        node.set_page_id(page_id);
+        node.set_is_leaf(true);
+        let mut inner_node_list = Vec::<InnerNode>::new();
+        let count = 5;
         for index in 0..count {
             let key = format!("key_{}", index);
             let val = format!("val_{}", index);
             let key = Vec::<u8>::from(&key[..]);
             let val = Vec::<u8>::from(&val[..]);
-            let inner_node = InnerNode::new(BRANCH_PAGE_FLAG, page_id, key, val);
+            let inner_node = InnerNode::new(flags, page_id, key, val);
             inner_node_list.push(inner_node);
         }
         node.set_inner_node_list(inner_node_list);
-        let mut page = Page::new(page_id, BRANCH_PAGE_FLAG, count, 1);
-        let mut db = DB::new(FILE_NAME);
+
+        node
+    }
+
+    #[test]
+    fn test_write_and_read_for_leaf_node() {
+        // env_logger::init();
+        let file_name = "data11.db".to_string();
+        let mut db = DB::new(&file_name);
+        let page_id = 5;
+        let flags = LEAF_PAGE_FLAG;
+        let count = 20;
+        let page = Page::new(page_id, flags, count as u16, (page_id * page_id) as u32);
         db.write_page(&page);
+        let mut page = db.read_page(page_id);
+        let mut node = init_leaf_node(page_id, flags, count as usize);
         node.write(&mut page);
+        let mut ret_node = Node::new();
+        ret_node.read(&mut page);
+        assert_eq!(node, ret_node);
     }
 }

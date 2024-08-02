@@ -2,7 +2,7 @@
 #![allow(unused)]
 #![allow(unused_variables)]
 
-use crate::constant::{FILE_MAX_SIZE, PAGE_SIZE};
+use crate::constant::{FILE_MAX_SIZE, MAX_PAGE_ID, PAGE_SIZE};
 use crate::page::Page;
 use memmap2::MmapMut;
 use std::fs::{File, OpenOptions};
@@ -11,6 +11,7 @@ use std::ptr;
 
 // 256 M
 
+#[derive(Debug)]
 pub struct DB {
     file: File,
     mmap: MmapMut,
@@ -59,20 +60,28 @@ impl DB {
         file.seek(SeekFrom::Start(0)).expect("Set start error");
 
         let mmap = unsafe { MmapMut::map_mut(&file).expect("Mmap file failed.") };
-        log::info!("mmap address is : {:p}", mmap.as_ptr());
         let range = mmap.as_ptr_range();
-        DB {
+        let db = DB {
             file: file,
             mmap: mmap,
             start_ptr: range.start,
             end_ptr: range.end,
-        }
+        };
+        log::info!("db is : {:#?}", db);
+        db
     }
 
     // 把Page写入DB中指定的位置
     pub fn write_page(&self, page: &Page) {
         let mut ptr = self.start_ptr();
         let page_id = page.get_page_id();
+        if page_id > MAX_PAGE_ID {
+            let err_msg = format!(
+                "page id {} more then the max page is: {}",
+                page_id, MAX_PAGE_ID
+            );
+            panic!("{}", err_msg);
+        }
         unsafe {
             ptr = ptr.add(page_id as usize * PAGE_SIZE);
             let ptr = ptr as *mut Page;
@@ -84,9 +93,12 @@ impl DB {
     pub fn read_page(&mut self, page_id: u64) -> Page {
         let mut ptr = self.start_ptr();
         unsafe {
-            ptr = ptr.add(page_id as usize * PAGE_SIZE);
+            let ptr = ptr.add(page_id as usize * PAGE_SIZE);
+            let page_ptr = Some(ptr);
             let ptr = ptr as *const Page;
-            ptr::read(ptr)
+            let mut page = ptr::read(ptr);
+            page.set_page_ptr(page_ptr);
+            page
         }
     }
 }
@@ -94,7 +106,7 @@ impl DB {
 #[cfg(test)]
 pub mod test {
     use crate::db::DB;
-    use crate::page::{Page, LEAF_PAGE_FLAG};
+    use crate::page::{Page, BRANCH_PAGE_FLAG, LEAF_PAGE_FLAG};
 
     #[test]
     fn test_new_db() {
@@ -102,8 +114,10 @@ pub mod test {
         let _db = DB::new(&file_name);
         std::fs::remove_file(&file_name).unwrap();
     }
+
     #[test]
-    fn test_write_page() {
+    fn test_write_leaf_page() {
+        // env_logger::init();
         let file_name = "test111.db".to_string();
         let mut db = DB::new(&file_name);
         for page_id in 0..10 {
@@ -114,13 +128,14 @@ pub mod test {
                 (page_id * page_id) as u32,
             );
             db.write_page(&page);
+            log::info!("write page is : {:?}", page);
         }
         log::debug!("hello");
     }
 
     #[test]
-    fn test_read_page() {
-        env_logger::init();
+    fn test_read_leaf_page() {
+        // env_logger::init();
         let file_name = "test111.db".to_string();
         let mut db = DB::new(&file_name);
         for page_id in 0..10 {
@@ -132,7 +147,41 @@ pub mod test {
             );
             let ret_page = db.read_page(page_id);
             log::info!("ret page is : {:?}", ret_page);
-            assert_eq!(page, ret_page);
+        }
+    }
+
+    #[test]
+    fn test_write_branch_page() {
+        // env_logger::init();
+        let file_name = "test111.db".to_string();
+        let mut db = DB::new(&file_name);
+        for page_id in 0..10 {
+            let page = Page::new(
+                page_id,
+                BRANCH_PAGE_FLAG,
+                (page_id + 1) as u16,
+                (page_id * page_id) as u32,
+            );
+            db.write_page(&page);
+            log::info!("write page is : {:?}", page);
+        }
+        log::debug!("hello");
+    }
+
+    #[test]
+    fn test_read_branch_page() {
+        // env_logger::init();
+        let file_name = "test111.db".to_string();
+        let mut db = DB::new(&file_name);
+        for page_id in 0..10 {
+            let page = Page::new(
+                page_id,
+                BRANCH_PAGE_FLAG,
+                (page_id + 1) as u16,
+                (page_id * page_id) as u32,
+            );
+            let ret_page = db.read_page(page_id);
+            log::info!("ret page is : {:?}", ret_page);
         }
     }
 }

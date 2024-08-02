@@ -2,7 +2,7 @@ use crate::node::InnerNode;
 use crate::page::{BranchPageElement, LeafPageElement, Page, BRANCH_PAGE_FLAG, LEAF_PAGE_FLAG};
 
 // 从Page中读出Page中的内容，保存到Node 中的 inner node list中；
-pub fn read_inner_node_from_page(page: &Page) -> Vec<InnerNode> {
+pub fn read_inner_node_from_page(page: &mut Page) -> Vec<InnerNode> {
     let sz = page.count();
     let mut inner_node_list = Vec::<InnerNode>::with_capacity(sz as usize);
     for index in 0..(sz as usize) {
@@ -19,18 +19,19 @@ pub fn read_inner_node_from_page(page: &Page) -> Vec<InnerNode> {
 }
 
 // 从Page中读取第index个元素对应的Key, Val
-fn read_key_and_val_from_page(page: &Page, index: usize) -> (Vec<u8>, Vec<u8>) {
+fn read_key_and_val_from_page(page: &mut Page, index: usize) -> (Vec<u8>, Vec<u8>) {
     if page.is_leaf_page() {
         let leaf_page_element = page.read_leaf_page_element(index);
         let pos = leaf_page_element.pos();
         let val_pos = pos + leaf_page_element.ksize();
-
-        (page.read_key(pos), page.read_val(val_pos))
+        (
+            page.read_key(pos, leaf_page_element.ksize()),
+            page.read_val(val_pos, leaf_page_element.vsize()),
+        )
     } else {
         let branch_page_element = page.read_branch_page_element(index);
         let pos = branch_page_element.pos();
-
-        (page.read_key(pos), vec![])
+        (page.read_key(pos, branch_page_element.ksize()), vec![])
     }
 }
 
