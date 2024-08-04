@@ -3,6 +3,7 @@
 #![allow(unused_variables)]
 
 use crate::constant::MAX_PAGE_ELEMENT_COUNT;
+use crate::meta::Meta;
 use crate::node::InnerNode;
 use std::ptr;
 use std::ptr::NonNull;
@@ -210,6 +211,11 @@ impl Page {
     // 在pos处写入val
     pub fn read_val(&mut self, pos: usize, val_size: usize) -> Vec<u8> {
         self.read_key(pos, val_size)
+    }
+
+    // 从Meta构造Page
+    pub fn from_meta(meta: &Meta) -> Self {
+        Page::new(meta.page_id(), META_PAGE_FLAG, 1, 0)
     }
 }
 
