@@ -13,3 +13,5 @@ pub mod meta;
 pub mod tx;
 
 pub mod bucket;
+
+pub mod freelist;
