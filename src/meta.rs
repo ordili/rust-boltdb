@@ -117,7 +117,7 @@ impl Meta {
 #[cfg(test)]
 pub mod test {
     use crate::constant::PAGE_SIZE;
-    use crate::db::DB;
+    use crate::db::Db;
     use crate::meta::Meta;
     use crate::page::{Page, META_PAGE_FLAG};
 
@@ -125,7 +125,7 @@ pub mod test {
     fn test_write() {
         let file_name = "tst.db";
         let page_id = 1;
-        let mut db = DB::new(file_name);
+        let db = Db::new(file_name);
         let meta = Meta::new(page_id, PAGE_SIZE, 128, 12);
         let mut page = Page::new(page_id, META_PAGE_FLAG, 0, 0);
         db.write_page(&mut page);
@@ -137,7 +137,7 @@ pub mod test {
     fn test_read() {
         let file_name = "tst.db";
         let page_id = 1;
-        let mut db = DB::new(file_name);
+        let db = Db::new(file_name);
         let meta = Meta::new(page_id, PAGE_SIZE, 128, 12);
         let mut page = Page::new(page_id, META_PAGE_FLAG, 0, 0);
         db.write_page(&mut page);

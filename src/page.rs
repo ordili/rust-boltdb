@@ -331,7 +331,7 @@ impl Pgids {
 #[cfg(test)]
 mod tests {
     use crate::constant::PAGE_SIZE;
-    use crate::db::DB;
+    use crate::db::Db;
     use crate::page::{
         Page, Pgids, BRANCH_PAGE_FLAG, FREELIST_PAGE_FLAG, LEAF_PAGE_FLAG, META_PAGE_FLAG,
     };
@@ -372,7 +372,7 @@ mod tests {
     // #[test]
     fn test_write_key_and_read_key() {
         let file_name = "file.db";
-        let mut db = DB::new(file_name);
+        let mut db = Db::new(file_name);
         let page_id = 1;
         let mut page = Page::new(page_id, BRANCH_PAGE_FLAG, 1, 0);
         db.write_page(&mut page);
@@ -383,7 +383,7 @@ mod tests {
     fn test_page_ptr() {
         // env_logger::init();
         let file_name = "file.db";
-        let mut db = DB::new(file_name);
+        let mut db = Db::new(file_name);
         let page_id = 1;
         let mut page = Page::new(page_id, BRANCH_PAGE_FLAG, 1, 0);
         log::info!("db start address : {:p}", db.start_ptr());

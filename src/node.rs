@@ -170,7 +170,7 @@ impl InnerNode {
 
 #[cfg(test)]
 pub mod test {
-    use crate::db::DB;
+    use crate::db::Db;
     use crate::node::{InnerNode, Node};
     use crate::page::{Page, BRANCH_PAGE_FLAG, LEAF_PAGE_FLAG};
 
@@ -178,7 +178,7 @@ pub mod test {
     fn test_write_and_read_for_branch_node() {
         env_logger::init();
         let file_name = "data.db".to_string();
-        let mut db = DB::new(&file_name);
+        let mut db = Db::new(&file_name);
         let page_id = 5;
         let flags = BRANCH_PAGE_FLAG;
         let count = 20;
@@ -237,7 +237,7 @@ pub mod test {
     fn test_write_and_read_for_leaf_node() {
         // env_logger::init();
         let file_name = "data11.db".to_string();
-        let mut db = DB::new(&file_name);
+        let mut db = Db::new(&file_name);
         let page_id = 5;
         let flags = LEAF_PAGE_FLAG;
         let count = 20;
