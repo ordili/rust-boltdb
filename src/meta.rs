@@ -1,16 +1,17 @@
+use crate::bucket::InBucket;
 use crate::page::{Page, META_PAGE_FLAG};
 use std::ptr;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Meta {
-    magic: u32,       //魔数
-    version: u32,     //版本
-    page_size: usize, //page页的大小，该值和操作系统默认的页大小保持一致
-    // root     :bucket //所有小柜子bucket的根
-    freelist: u64, //空闲列表页的id
-    page_id: u64,  //元数据页的id
-    tx_id: u64,    //最大的事务id
-    checksum: u64, //用作校验的校验和
+    magic: u32,            //魔数
+    version: u32,          //版本
+    page_size: usize,      //page页的大小，该值和操作系统默认的页大小保持一致
+    root_bucket: InBucket, //所有小柜子bucket的根
+    freelist: u64,         //空闲列表页的id
+    page_id: u64,          //元数据页的id
+    tx_id: u64,            //最大的事务id
+    checksum: u64,         //用作校验的校验和
 }
 
 impl Meta {
@@ -70,6 +71,7 @@ impl Meta {
             page_id,     //元数据页的id
             tx_id,       //最大的事务id
             checksum,    //用作校验的校验和
+            root_bucket: InBucket::new(0, 0),
         }
     }
 
@@ -82,6 +84,7 @@ impl Meta {
             page_id: 0,       //元数据页的id
             tx_id: 0,         //最大的事务id
             checksum: 0,      //用作校验的校验和
+            root_bucket: InBucket::new(0, 0),
         }
     }
 

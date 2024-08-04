@@ -104,7 +104,20 @@ impl Db {
     }
 
     pub fn begin(&self, writable: bool) -> Tx {
-        Tx::init(self, writable)
+        // Tx::init(self, writable)
+        if writable {
+            self.beginRWTx()
+        } else {
+            self.beginTx()
+        }
+    }
+
+    pub fn beginRWTx(&self) -> Tx {
+        Tx::init(self, true)
+    }
+
+    pub fn beginTx(&self) -> Tx {
+        Tx::init(self, false)
     }
 }
 
