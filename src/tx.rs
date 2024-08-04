@@ -1,8 +1,23 @@
+#![allow(dead_code)]
+#![allow(unused)]
+#![allow(unused_variables)]
+
 use crate::bucket::Bucket;
 use crate::db::Db;
 use crate::meta::Meta;
 use crate::page::Page;
 use std::collections::HashMap;
+
+#[derive(Copy, Clone, Debug)]
+pub struct TxId(u64);
+
+// txPending holds a list of pgids and corresponding allocation txns
+// that are pending to be freed.
+pub struct TxPending {
+    ids: Vec<u64>,            // page id list
+    alloc_tx: Vec<TxId>,      // txids allocating the ids
+    last_release_begin: TxId, // beginning txid of last matching releaseRange
+}
 
 pub struct Tx<'a> {
     writable: bool,

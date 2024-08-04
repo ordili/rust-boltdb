@@ -1,3 +1,7 @@
+#![allow(dead_code)]
+#![allow(unused)]
+#![allow(unused_variables)]
+
 use crate::bucket::InBucket;
 use crate::page::{Page, META_PAGE_FLAG};
 use std::ptr;
