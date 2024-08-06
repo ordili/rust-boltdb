@@ -62,11 +62,19 @@ impl Meta {
     pub fn set_checksum(&mut self, checksum: u64) {
         self.checksum = checksum;
     }
+
+    pub fn root_bucket(&self) -> InBucket {
+        self.root_bucket
+    }
+
+    pub fn set_root_bucket(&mut self, root_bucket: InBucket) {
+        self.root_bucket = root_bucket;
+    }
 }
 
 impl Meta {
     pub fn new(page_id: u64, page_size: usize, tx_id: u64, checksum: u64) -> Self {
-        Self {
+        Meta {
             magic: 123456u32, //魔数
             version: 1u32,    //版本
             page_size,        //page页的大小，该值和操作系统默认的页大小保持一致

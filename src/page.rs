@@ -21,7 +21,7 @@ pub const PAGE_HEADER_SIZE: usize = std::mem::size_of::<Page>();
 pub const BRANCH_PAGE_ELEMENT_SIZE: usize = std::mem::size_of::<BranchPageElement>();
 pub const LEAF_PAGE_ELEMENT_SIZE: usize = std::mem::size_of::<LeafPageElement>();
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Page {
     page_ptr: Option<*const u8>,
     page_id: u64,

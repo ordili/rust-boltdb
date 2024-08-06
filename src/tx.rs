@@ -2,11 +2,14 @@
 #![allow(unused)]
 #![allow(unused_variables)]
 
-use crate::bucket::Bucket;
+use crate::bucket::{Bucket, InBucket};
 use crate::db::Db;
 use crate::meta::Meta;
+use crate::node::Node;
 use crate::page::Page;
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 #[derive(Copy, Clone, Debug)]
 pub struct TxId(u64);
@@ -19,15 +22,15 @@ pub struct TxPending {
     last_release_begin: TxId, // beginning txid of last matching releaseRange
 }
 
-pub struct Tx<'a> {
+pub struct Tx {
     writable: bool,
     managed: bool,
-    db: &'a Db,
+    db: Rc<RefCell<Db>>,
     meta: Meta,
-    root: Bucket<'a>,
-    pages: HashMap<u64, &'a Page>,
+    pages: HashMap<u64, Rc<RefCell<Page>>>,
     stats: TxStats,
     write_flag: i32,
+    bucket_to_page_map: HashMap<String, u64>, // Key bucket name; Val 这个Bucket存放数据的Root Page Id
 }
 
 pub struct TxStats {}
@@ -38,32 +41,21 @@ impl TxStats {
     }
 }
 
-impl<'a> Tx<'a> {
+impl Tx {
     pub fn writable(&self) -> bool {
         self.writable
+    }
+    pub fn managed(&self) -> bool {
+        self.managed
+    }
+    pub fn db(&self) -> &Rc<RefCell<Db>> {
+        &self.db
     }
     pub fn meta(&self) -> Meta {
         self.meta
     }
-    pub fn db(&self) -> &'a Db {
-        self.db
-    }
-    pub fn set_writable(&mut self, writable: bool) {
-        self.writable = writable;
-    }
-    pub fn set_meta(&mut self, meta: Meta) {
-        self.meta = meta;
-    }
-    pub fn set_db(&mut self, db: &'a Db) {
-        self.db = db;
-    }
-
-    pub fn managed(&self) -> bool {
-        self.managed
-    }
-
-    pub fn pages(&self) -> &HashMap<u64, &'a Page> {
-        &self.pages
+    pub fn pages(&mut self) -> &mut HashMap<u64, Rc<RefCell<Page>>> {
+        &mut self.pages
     }
     pub fn stats(&self) -> &TxStats {
         &self.stats
@@ -72,11 +64,19 @@ impl<'a> Tx<'a> {
         self.write_flag
     }
 
+    pub fn set_writable(&mut self, writable: bool) {
+        self.writable = writable;
+    }
     pub fn set_managed(&mut self, managed: bool) {
         self.managed = managed;
     }
-
-    pub fn set_pages(&mut self, pages: HashMap<u64, &'a Page>) {
+    pub fn set_db(&mut self, db: Rc<RefCell<Db>>) {
+        self.db = db;
+    }
+    pub fn set_meta(&mut self, meta: Meta) {
+        self.meta = meta;
+    }
+    pub fn set_pages(&mut self, pages: HashMap<u64, Rc<RefCell<Page>>>) {
         self.pages = pages;
     }
     pub fn set_stats(&mut self, stats: TxStats) {
@@ -85,52 +85,50 @@ impl<'a> Tx<'a> {
     pub fn set_write_flag(&mut self, write_flag: i32) {
         self.write_flag = write_flag;
     }
-
     pub fn new(
         writable: bool,
         managed: bool,
-        db: &'a Db,
+        db: Rc<RefCell<Db>>,
         meta: Meta,
-        root: Bucket<'a>,
-        pages: HashMap<u64, &'a Page>,
+        pages: HashMap<u64, Rc<RefCell<Page>>>,
         stats: TxStats,
         write_flag: i32,
+        bucket_to_page_map: HashMap<String, u64>,
     ) -> Self {
         Self {
             writable,
             managed,
             db,
             meta,
-            root,
             pages,
             stats,
             write_flag,
+            bucket_to_page_map,
         }
-    }
-    pub fn root(&self) -> &Bucket<'a> {
-        &self.root
-    }
-
-    pub fn set_root(&mut self, root: Bucket<'a>) {
-        self.root = root;
     }
 }
 
-impl<'a> Tx<'a> {
-    pub fn init(db: &'a Db, writable: bool) -> Self {
+impl Tx {
+    pub fn init(db: Rc<RefCell<Db>>, writable: bool) -> Rc<RefCell<Tx>> {
         let managed = false;
-        let mut meta_page = db.read_page(0);
+        let mut meta_page = db.borrow().read_page(0);
         let meta = Meta::from_page(&mut meta_page);
-        let root = Bucket::new();
-        // root.init(&meta);
-        let pages: HashMap<u64, &'a Page> = HashMap::new();
+        let pages: HashMap<u64, Rc<RefCell<Page>>> = HashMap::new();
         let stats: TxStats = TxStats::new();
-        let write_flag = 1;
-        Tx::new(writable, managed, db, meta, root, pages, stats, write_flag)
-    }
-    // to do
-    pub fn new_bucket(&self) -> Bucket {
-        let bucket = Bucket::new();
-        bucket
+        let write_flag = 0;
+        let bucket_to_page_map: HashMap<String, u64> = HashMap::new();
+
+        let tx = Tx::new(
+            writable,
+            managed,
+            db,
+            meta,
+            pages,
+            stats,
+            write_flag,
+            bucket_to_page_map,
+        );
+
+        Rc::new(RefCell::new(tx))
     }
 }

@@ -2,13 +2,19 @@
 #![allow(unused)]
 #![allow(unused_variables)]
 
+use crate::bucket::{Bucket, InBucket};
 use crate::constant::{FILE_MAX_SIZE, MAX_PAGE_ID, PAGE_SIZE};
+use crate::cursor::DBCursor;
+use crate::node::Node;
 use crate::page::Page;
 use crate::tx::Tx;
 use memmap2::MmapMut;
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{Seek, SeekFrom};
 use std::ptr;
+use std::rc::Rc;
 
 // 256 M
 
@@ -68,6 +74,7 @@ impl Db {
             start_ptr: range.start,
             end_ptr: range.end,
         };
+        Db::init(&db);
         log::info!("db is : {:#?}", db);
         db
     }
@@ -102,22 +109,55 @@ impl Db {
             page
         }
     }
+}
 
-    pub fn begin(&self, writable: bool) -> Tx {
+impl Db {
+    pub fn begin(db: Rc<RefCell<Db>>, writable: bool) -> Rc<RefCell<Tx>> {
         // Tx::init(self, writable)
         if writable {
-            self.begin_rwtx()
+            Db::begin_rwtx(db)
         } else {
-            self.begin_tx()
+            Db::begin_tx(db)
         }
     }
 
-    pub fn begin_rwtx(&self) -> Tx {
-        Tx::init(self, true)
+    pub fn begin_rwtx(db: Rc<RefCell<Db>>) -> Rc<RefCell<Tx>> {
+        Tx::init(db, true)
     }
 
-    pub fn begin_tx(&self) -> Tx {
-        Tx::init(self, false)
+    pub fn begin_tx(db: Rc<RefCell<Db>>) -> Rc<RefCell<Tx>> {
+        Tx::init(db, false)
+    }
+
+    pub fn create_bucket(tx: Rc<RefCell<Tx>>, bucket_name: &[u8]) -> Bucket {
+        let in_bucket = InBucket::new(0, 0);
+        let page: Option<Page> = None;
+        let meta = tx.borrow().meta();
+        let bucket_root_page_id = meta.root_bucket().root_page_id();
+
+        let map = tx.borrow().pages(); //.get(&bucket_root_page_id).unwrap();
+        let bucket_root_page = map.get(&bucket_root_page_id).unwrap().clone();
+
+        //
+        let mut cursor = DBCursor::new(Some(bucket_root_page), None);
+
+        // 1. 找到 bucket, 获取bucket存储数据的 root_page_id
+        cursor.seek(bucket_name);
+
+        let nodes: HashMap<u64, Node> = HashMap::new();
+        let fill_percent: f64 = 0.75;
+
+        // 用bucket存储数据的 root_page_id初始化
+        let root_node: Option<Node> = None;
+        // to do ...
+        Bucket::new(in_bucket, tx, None, root_node, nodes, fill_percent)
+    }
+
+    // 1. 初始化 Meta page
+    // 2. 初始化 Bucket Page
+    // 3. 初始化 FreeListPage
+    pub fn init(db: &Db) {
+        // to do
     }
 }
 
