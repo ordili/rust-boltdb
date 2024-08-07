@@ -21,7 +21,7 @@ impl DBCursor {
     }
 
     // 返回key, val, page
-    pub fn seek(&mut self, key: &[u8]) -> (Option<Vec<u8>>, Option<Rc<RefCell<Page>>>) {
+    pub fn seek(&mut self, key: &Vec<u8>) -> (Option<Vec<u8>>, Option<Rc<RefCell<Page>>>) {
         let elem_ref = self.stack.pop().expect("stack is empty");
 
         let page = elem_ref.page;

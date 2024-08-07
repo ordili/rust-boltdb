@@ -121,8 +121,17 @@ impl Node {
     }
 
     // to do ...
-    pub fn search_key(&self, key: &[u8]) -> Option<Vec<u8>> {
-        None
+    pub fn search_key(&self, target: &Vec<u8>) -> Option<Vec<u8>> {
+        match self
+            .inner_node_list
+            .binary_search_by(|inner_node| inner_node.key().cmp(target))
+        {
+            Ok(index) => {
+                let ret = self.inner_node_list.get(index).unwrap().key();
+                Some(ret.clone())
+            }
+            Err(_) => None,
+        }
     }
 }
 

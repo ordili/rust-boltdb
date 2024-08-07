@@ -136,7 +136,7 @@ impl Db {
         let mut cursor = DBCursor::new(Some(bucket_root_page), None);
 
         // 1. 找到 bucket, 获取bucket存储数据的 root_page_id
-        cursor.seek(bucket_name);
+        cursor.seek(&Vec::from(bucket_name));
 
         let nodes: HashMap<u64, Node> = HashMap::new();
         let fill_percent: f64 = 0.75;
