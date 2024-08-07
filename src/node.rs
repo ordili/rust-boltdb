@@ -119,6 +119,11 @@ impl Node {
         page.set_flags(flag);
         write_inner_node_to_page(inner_node_list, page);
     }
+
+    // to do ...
+    pub fn search_key(&self, key: &[u8]) -> Option<Vec<u8>> {
+        None
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -171,6 +176,7 @@ impl InnerNode {
 #[cfg(test)]
 pub mod test {
     use crate::db::Db;
+    use crate::db_utils;
     use crate::node::{InnerNode, Node};
     use crate::page::{Page, BRANCH_PAGE_FLAG, LEAF_PAGE_FLAG};
 
@@ -184,7 +190,7 @@ pub mod test {
         let count = 20;
         let page = Page::new(page_id, flags, count as u16, (page_id * page_id) as u32);
         db.write_page(&page);
-        let mut page = db.read_page(page_id);
+        let mut page = db_utils::read_page(page_id);
         let mut node = init_branch_node(page_id, flags, count as usize);
         node.write(&mut page);
         let mut ret_node = Node::new();
@@ -243,7 +249,7 @@ pub mod test {
         let count = 20;
         let page = Page::new(page_id, flags, count as u16, (page_id * page_id) as u32);
         db.write_page(&page);
-        let mut page = db.read_page(page_id);
+        let mut page = db_utils::read_page(page_id);
         let mut node = init_leaf_node(page_id, flags, count as usize);
         node.write(&mut page);
         let mut ret_node = Node::new();

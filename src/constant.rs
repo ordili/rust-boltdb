@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 // DB File size
 pub const FILE_MAX_SIZE: u64 = 1024 * 1024 * 100;
 
@@ -8,3 +10,7 @@ pub const MAX_PAGE_ELEMENT_COUNT: usize = 50;
 pub const PAGE_SIZE: usize = 1024 * 1024 * 10;
 
 pub const MAX_PAGE_ID: u64 = FILE_MAX_SIZE / PAGE_SIZE as u64 - 1;
+
+pub static mut GLOBAL_BEGIN_PTR: Option<Rc<*const u8>> = None;
+
+// pub static mut global_db: Option<Rc<>> = None;

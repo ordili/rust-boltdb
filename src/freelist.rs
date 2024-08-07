@@ -97,6 +97,7 @@ impl Freelist {
 #[cfg(test)]
 pub mod test {
     use crate::db::Db;
+    use crate::db_utils;
     use crate::freelist::Freelist;
     use crate::page::{Page, FREELIST_PAGE_FLAG};
 
@@ -106,8 +107,8 @@ pub mod test {
         let mut db = Db::new(file_name);
         let page_id = 3;
         let mut page = Page::new(page_id, FREELIST_PAGE_FLAG, 0, 0);
-        db.write_page(&page);
-        let mut page = db.read_page(page_id);
+        db_utils::write_page(&page);
+        let mut page = db_utils::read_page(page_id);
         println!("{:?}", page);
         let ids = vec![1, 3, 5, 7, 9, 10, 11, 13, 15];
         let free_list = Freelist::new(ids);
@@ -120,7 +121,7 @@ pub mod test {
         let mut db = Db::new(file_name);
         let page_id = 3;
 
-        let mut page = db.read_page(page_id);
+        let mut page = db_utils::read_page(page_id);
         println!("{:?}", page);
         let ids = vec![1, 3, 5, 7, 9, 10, 11, 13, 15];
         let free_list = Freelist::new(ids);

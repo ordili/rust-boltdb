@@ -1,3 +1,7 @@
+#![allow(dead_code)]
+#![allow(unused)]
+#![allow(unused_variables)]
+
 use rust_boltdb::db::Db;
 use rust_boltdb::tx::Tx;
 use std::cell::{Ref, RefCell};

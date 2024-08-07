@@ -133,6 +133,7 @@ impl Meta {
 pub mod test {
     use crate::constant::PAGE_SIZE;
     use crate::db::Db;
+    use crate::db_utils;
     use crate::meta::Meta;
     use crate::page::{Page, META_PAGE_FLAG};
 
@@ -143,8 +144,8 @@ pub mod test {
         let db = Db::new(file_name);
         let meta = Meta::new(page_id, PAGE_SIZE, 128, 12);
         let mut page = Page::new(page_id, META_PAGE_FLAG, 0, 0);
-        db.write_page(&mut page);
-        let mut page = db.read_page(page_id);
+        db_utils::write_page(&mut page);
+        let mut page = db_utils::read_page(page_id);
         meta.write(&mut page);
     }
 
@@ -155,9 +156,9 @@ pub mod test {
         let db = Db::new(file_name);
         let meta = Meta::new(page_id, PAGE_SIZE, 128, 12);
         let mut page = Page::new(page_id, META_PAGE_FLAG, 0, 0);
-        db.write_page(&mut page);
+        db_utils::write_page(&mut page);
 
-        let mut page = db.read_page(page_id);
+        let mut page = db_utils::read_page(page_id);
         let ret_meta = Meta::from_page(&mut page);
 
         assert_eq!(meta, ret_meta);

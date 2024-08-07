@@ -3,7 +3,7 @@
 #![allow(unused_variables)]
 
 use crate::bucket::{Bucket, InBucket};
-use crate::constant::{FILE_MAX_SIZE, MAX_PAGE_ID, PAGE_SIZE};
+use crate::constant::{FILE_MAX_SIZE, GLOBAL_BEGIN_PTR, MAX_PAGE_ID, PAGE_SIZE};
 use crate::cursor::DBCursor;
 use crate::node::Node;
 use crate::page::Page;
@@ -76,6 +76,9 @@ impl Db {
         };
         Db::init(&db);
         log::info!("db is : {:#?}", db);
+        unsafe {
+            GLOBAL_BEGIN_PTR = Some(Rc::new(range.start));
+        }
         db
     }
 
@@ -96,24 +99,12 @@ impl Db {
             ptr::write(ptr, page.clone());
         }
     }
-
-    // 从DB中读一个Page
-    pub fn read_page(&self, page_id: u64) -> Page {
-        let mut ptr = self.start_ptr();
-        unsafe {
-            let ptr = ptr.add(page_id as usize * PAGE_SIZE);
-            let page_ptr = Some(ptr);
-            let ptr = ptr as *const Page;
-            let mut page = ptr::read(ptr);
-            page.set_page_ptr(page_ptr);
-            page
-        }
-    }
 }
 
 impl Db {
+    // 从DB中读一个Page
+
     pub fn begin(db: Rc<RefCell<Db>>, writable: bool) -> Rc<RefCell<Tx>> {
-        // Tx::init(self, writable)
         if writable {
             Db::begin_rwtx(db)
         } else {
@@ -129,13 +120,16 @@ impl Db {
         Tx::init(db, false)
     }
 
-    pub fn create_bucket(tx: Rc<RefCell<Tx>>, bucket_name: &[u8]) -> Bucket {
+    pub fn create_bucket(tx_rc: Rc<RefCell<Tx>>, bucket_name: &[u8]) -> Bucket {
+        let tx_rc_inner = tx_rc.clone();
+        let mut tx = tx_rc_inner.borrow_mut();
+
         let in_bucket = InBucket::new(0, 0);
         let page: Option<Page> = None;
-        let meta = tx.borrow().meta();
+        let meta = tx.meta();
         let bucket_root_page_id = meta.root_bucket().root_page_id();
 
-        let map = tx.borrow().pages(); //.get(&bucket_root_page_id).unwrap();
+        let map = tx.pages(); //.get(&bucket_root_page_id).unwrap();
         let bucket_root_page = map.get(&bucket_root_page_id).unwrap().clone();
 
         //
@@ -150,7 +144,7 @@ impl Db {
         // 用bucket存储数据的 root_page_id初始化
         let root_node: Option<Node> = None;
         // to do ...
-        Bucket::new(in_bucket, tx, None, root_node, nodes, fill_percent)
+        Bucket::new(in_bucket, tx_rc, None, root_node, nodes, fill_percent)
     }
 
     // 1. 初始化 Meta page
@@ -164,6 +158,7 @@ impl Db {
 #[cfg(test)]
 pub mod test {
     use crate::db::Db;
+    use crate::db_utils;
     use crate::page::{Page, BRANCH_PAGE_FLAG, LEAF_PAGE_FLAG};
 
     #[test]
@@ -203,7 +198,7 @@ pub mod test {
                 (page_id + 1) as u16,
                 (page_id * page_id) as u32,
             );
-            let ret_page = db.read_page(page_id);
+            let ret_page = db_utils::read_page(page_id);
             log::info!("ret page is : {:?}", ret_page);
         }
     }
@@ -238,7 +233,7 @@ pub mod test {
                 (page_id + 1) as u16,
                 (page_id * page_id) as u32,
             );
-            let ret_page = db.read_page(page_id);
+            let ret_page = db_utils::read_page(page_id);
             log::info!("ret page is : {:?}", ret_page);
         }
     }

@@ -332,6 +332,7 @@ impl Pgids {
 mod tests {
     use crate::constant::PAGE_SIZE;
     use crate::db::Db;
+    use crate::db_utils;
     use crate::page::{
         Page, Pgids, BRANCH_PAGE_FLAG, FREELIST_PAGE_FLAG, LEAF_PAGE_FLAG, META_PAGE_FLAG,
     };
@@ -375,8 +376,8 @@ mod tests {
         let mut db = Db::new(file_name);
         let page_id = 1;
         let mut page = Page::new(page_id, BRANCH_PAGE_FLAG, 1, 0);
-        db.write_page(&mut page);
-        let mut page = db.read_page(page_id);
+        db_utils::write_page(&mut page);
+        let mut page = db_utils::read_page(page_id);
     }
 
     #[test]
@@ -388,7 +389,7 @@ mod tests {
         let mut page = Page::new(page_id, BRANCH_PAGE_FLAG, 1, 0);
         log::info!("db start address : {:p}", db.start_ptr());
         db.write_page(&mut page);
-        let mut page = db.read_page(page_id);
+        let mut page = db_utils::read_page(page_id);
         log::info!("read page address : {:p}", page.as_ptr().unwrap());
         let mut ptr_from_db = db.start_ptr();
         unsafe {

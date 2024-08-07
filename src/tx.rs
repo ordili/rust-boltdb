@@ -4,6 +4,7 @@
 
 use crate::bucket::{Bucket, InBucket};
 use crate::db::Db;
+use crate::db_utils;
 use crate::meta::Meta;
 use crate::node::Node;
 use crate::page::Page;
@@ -111,7 +112,7 @@ impl Tx {
 impl Tx {
     pub fn init(db: Rc<RefCell<Db>>, writable: bool) -> Rc<RefCell<Tx>> {
         let managed = false;
-        let mut meta_page = db.borrow().read_page(0);
+        let mut meta_page = db_utils::read_page(0);
         let meta = Meta::from_page(&mut meta_page);
         let pages: HashMap<u64, Rc<RefCell<Page>>> = HashMap::new();
         let stats: TxStats = TxStats::new();
